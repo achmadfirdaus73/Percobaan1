@@ -1,242 +1,174 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard - User Management System</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v9.2.4/ol.css">
-    <script src="https://cdn.jsdelivr.net/npm/ol@v9.2.4/dist/ol.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="style.css"/>
-    
-   
+    <title>Admin Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+    <link rel="stylesheet" href="style.css">
 </head>
-<body class="bg-gray-100 min-h-screen">
-    <div id="app">
-        <!-- Loading Screen -->
-        <div id="loadingScreen" class="min-h-screen flex items-center justify-center">
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+
+    <div id="app" class="min-h-screen">
+        <div id="loadingScreen" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900 z-50">
+            <div class="flex flex-col items-center">
+                <div class="spinner mb-4"></div>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Loading data...</p>
+                <div id="timeoutMessage" class="hidden text-red-500 mt-2">Loading is taking too long.</div>
+                <button id="refreshBtn" class="hidden mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Refresh</button>
+            </div>
+        </div>
+
+        <div id="errorScreen" class="hidden absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900 z-50">
             <div class="text-center">
-                <div class="spinner mx-auto mb-4"></div>
-                <p class="text-gray-600">Loading...</p>
-                <div id="timeoutMessage" class="text-sm text-red-500 mt-2 hidden">
-                    Loading terlalu lama. Silakan refresh halaman.
+                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
+                <h2 class="text-xl font-bold text-red-500">Error</h2>
+                <p id="errorMessage" class="text-gray-600 dark:text-gray-300 mt-2">Failed to load data.</p>
+            </div>
+        </div>
+
+        <div id="dashboardScreen" class="hidden flex flex-col lg:flex-row min-h-screen transition-opacity">
+            <aside class="bg-gray-800 dark:bg-gray-900 text-white w-full lg:w-64 p-6 flex flex-col space-y-4">
+                <div class="flex items-center space-x-2">
+                    <i class="fas fa-map-marked-alt text-2xl text-blue-400"></i>
+                    <h1 class="text-xl font-bold">Admin Panel</h1>
                 </div>
-                <button id="refreshBtn" class="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 hidden">
-                    Refresh Halaman
-                </button>
-            </div>
-        </div>
+                <nav class="flex-1 mt-6 space-y-2">
+                    <a href="#" class="flex items-center p-3 rounded-xl bg-blue-600 dark:bg-blue-700 font-semibold text-white">
+                        <i class="fas fa-chart-line mr-2"></i> Dashboard
+                    </a>
+                </nav>
+                <div class="mt-auto pt-4 border-t border-gray-700 dark:border-gray-800">
+                    <div class="flex items-center">
+                        <div id="adminProfilePicture" class="flex items-center justify-center h-10 w-10 bg-gray-700 dark:bg-gray-600 rounded-full mr-3"></div>
+                        <span id="adminName" class="font-medium text-sm"></span>
+                        <button id="darkModeToggle" class="ml-auto p-2 text-gray-400 hover:text-white rounded-full transition-colors">
+                            <i class="fas fa-moon"></i>
+                        </button>
+                    </div>
+                </div>
+            </aside>
 
-        <!-- Error Screen -->
-        <div id="errorScreen" class="min-h-screen flex items-center justify-center hidden">
-            <div class="text-center max-w-md">
-                <div class="text-red-500 text-6xl mb-4">⚠️</div>
-                <h1 class="text-2xl font-bold mb-4">Terjadi Kesalahan</h1>
-                <p id="errorMessage" class="text-gray-600 mb-6"></p>
-                <button onclick="window.location.reload()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">
-                    Refresh Halaman
-                </button>
-            </div>
-        </div>
+            <main class="flex-1 p-4 lg:p-6 space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</h3>
+                            <i class="fas fa-users text-2xl text-blue-500"></i>
+                        </div>
+                        <p id="totalUsers" class="text-3xl font-bold mt-2"></p>
+                    </div>
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Users</h3>
+                            <i class="fas fa-user-check text-2xl text-green-500"></i>
+                        </div>
+                        <p id="activeUsers" class="text-3xl font-bold mt-2"></p>
+                    </div>
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Inactive Users</h3>
+                            <i class="fas fa-user-times text-2xl text-red-500"></i>
+                        </div>
+                        <p id="inactiveUsers" class="text-3xl font-bold mt-2"></p>
+                    </div>
+                    <div class="card p-6">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">User Activity</h3>
+                            <i class="fas fa-chart-bar text-2xl text-yellow-500"></i>
+                        </div>
+                        <div class="mt-2">
+                            <canvas id="hourlyChart"></canvas>
+                        </div>
+                    </div>
+                </div>
 
-        <!-- Login Screen -->
-        <div id="loginScreen" class="min-h-screen flex items-center justify-center hidden">
-            <div class="bg-white p-8 rounded-lg shadow-lg max-w-md w-full">
-                <h1 class="text-2xl font-bold text-center mb-6">Admin Dashboard</h1>
-                <p class="text-gray-600 text-center mb-8">Silakan login untuk melanjutkan</p>
-                <button id="loginBtn" class="w-full bg-red-500 text-white py-3 px-4 rounded-lg hover:bg-red-600 transition duration-200 flex items-center justify-center">
-                    <i class="fab fa-google mr-2"></i>
-                    Login dengan Google
-                </button>
-            </div>
-        </div>
-
-        <!-- Dashboard Screen -->
-        <div id="dashboardScreen" class="min-h-screen hidden">
-            <header class="bg-white shadow">
-                <div class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                    <div class="flex justify-between items-center">
-                        <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                        <div class="flex items-center space-x-4">
-                            <button id="darkModeToggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-600">
-                                <i class="fas fa-moon text-gray-700 dark:text-yellow-400"></i>
-                            </button>
-                            <div class="flex items-center">
-                                <div class="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center mr-2" id="adminProfilePicture">
-                                    <i class="fas fa-user text-gray-500 text-sm"></i>
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <div class="card p-6">
+                            <h2 class="text-xl font-bold mb-4">Live Location Map</h2>
+                            <div class="h-96 w-full rounded-xl overflow-hidden">
+                                <div id="map" class="w-full h-full"></div>
+                                <div id="popup" class="ol-popup">
+                                    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                                    <div id="popup-content"></div>
                                 </div>
-                                <span class="text-gray-700 mr-4" id="adminName">Admin</span>
-                                <button id="logoutBtn" class="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition duration-200">
-                                    Logout
-                                </button>
                             </div>
                         </div>
                     </div>
-                </div>
-            </header>
-
-            <main class="max-w-7xl mx-auto px-4 py-6 sm:px-6 lg:px-8">
-                <!-- Stats Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900">Total Users</h3>
-                                <p class="text-3xl font-bold text-blue-600" id="totalUsers">0</p>
-                            </div>
-                            <i class="fas fa-users text-3xl text-blue-500 opacity-50"></i>
-                        </div>
-                    </div>
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900">Active Users</h3>
-                                <p class="text-3xl font-bold text-green-600" id="activeUsers">0</p>
-                            </div>
-                            <i class="fas fa-user-check text-3xl text-green-500 opacity-50"></i>
-                        </div>
-                    </div>
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900">Inactive Users</h3>
-                                <p class="text-3xl font-bold text-red-600" id="inactiveUsers">0</p>
-                            </div>
-                            <i class="fas fa-user-times text-3xl text-red-500 opacity-50"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Map and User Management -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
-                    <!-- Map -->
-                    <div class="card p-6">
-                        <h2 class="text-xl font-semibold mb-4 flex items-center">
-                            <i class="fas fa-map-marker-alt mr-2"></i>
-                            User Locations
-                        </h2>
-                        <div id="map" class="h-96 rounded-lg"></div>
-                        <div id="popup" class="ol-popup">
-                            <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-                            <div id="popup-content"></div>
-                        </div>
-                    </div>
-
-                    <!-- User Management -->
-                    <div class="card p-6">
-                        <h2 class="text-xl font-semibold mb-4">User Management</h2>
-                        <div class="flex flex-col md:flex-row gap-4 mb-4">
-                            <div class="flex-1 relative">
-                                <i class="fas fa-search absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
-                                <input
-                                    type="text"
-                                    id="searchInput"
-                                    placeholder="Search users..."
-                                    class="w-full pl-10 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                />
-                            </div>
-                            <select
-                                id="statusFilter"
-                                class="p-2 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            >
-                                <option value="all">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                            <button
-                                id="exportBtn"
-                                class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition duration-200 flex items-center"
-                            >
-                                <i class="fas fa-download mr-2"></i>
-                                Export CSV
-                            </button>
-                        </div>
-                        <div class="overflow-x-auto max-h-96">
-                            <table class="min-w-full divide-y divide-gray-200">
-                                <thead class="bg-gray-50">
-                                    <tr>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
-                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Update</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="bg-white divide-y divide-gray-200" id="userTableBody">
-                                    <tr>
-                                        <td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">
-                                            Loading...
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Activity Overview -->
-                <div class="card p-6">
-                    <h2 class="text-xl font-semibold mb-4">Activity Overview</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h3 class="text-lg font-medium mb-4">User Status Distribution</h3>
-                            <div class="h-80">
+                    <div class="lg:col-span-1">
+                        <div class="card p-6">
+                            <h2 class="text-xl font-bold mb-4">User Status</h2>
+                            <div class="h-64">
                                 <canvas id="statusChart"></canvas>
                             </div>
                         </div>
-                        <div>
-                            <h3 class="text-lg font-medium mb-4">Hourly Activity</h3>
-                            <div class="h-80">
-                                <canvas id="hourlyChart"></canvas>
-                            </div>
+                    </div>
+                </div>
+
+                <div class="card p-6">
+                    <div class="flex flex-col md:flex-row items-center justify-between mb-4 space-y-4 md:space-y-0">
+                        <h2 class="text-xl font-bold">User List</h2>
+                        <div class="flex items-center space-x-2 w-full md:w-auto">
+                            <input type="text" id="searchInput" placeholder="Search users..." class="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <select id="statusFilter" class="px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="all">All</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                            <button id="exportBtn" class="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors whitespace-nowrap">
+                                <i class="fas fa-file-csv"></i> Export
+                            </button>
                         </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                            <thead>
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Update</th>
+                                </tr>
+                            </thead>
+                            <tbody id="userTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </main>
         </div>
-    </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform transition-transform duration-300 translate-y-full opacity-0">
-        <div class="flex justify-between items-center">
-            <span id="toastMessage"></span>
-            <button onclick="hideToast()" class="ml-4 text-white hover:text-gray-300">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-
-    <!-- User Modal -->
-    <div id="userModal" class="fixed inset-0 bg-black bg-opacity-50 modal-backdrop overflow-y-auto h-full w-full hidden">
-        <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-            <div class="mt-3 text-center">
-                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-blue-100">
-                    <i class="fas fa-user text-blue-600 text-xl"></i>
+        <div id="userModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 transition-opacity">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold">User Details</h3>
+                    <button id="closeModal" class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">&times;</button>
                 </div>
-                <h3 class="text-lg leading-6 font-medium text-gray-900" id="modalUserName">User Name</h3>
-                <div class="mt-2 px-7 py-3">
-                    <p class="text-sm text-gray-500" id="modalUserEmail">user@example.com</p>
-                    <p class="text-sm text-gray-500" id="modalUserStatus">Status: Active</p>
-                    <p class="text-sm text-gray-500" id="modalUserLocation">Location: -6.2088, 106.8456</p>
-                    <p class="text-sm text-gray-500" id="modalUserLastUpdate">Last Update: 2023-07-13 14:30:45</p>
-                </div>
-                <div class="items-center px-4 py-3">
-                    <button id="closeModal" class="px-4 py-2 bg-blue-500 text-white text-base font-medium rounded-md w-full shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        Close
-                    </button>
+                <div class="space-y-2 text-sm">
+                    <p id="modalUserName" class="font-semibold"></p>
+                    <p id="modalUserEmail"></p>
+                    <p id="modalUserStatus"></p>
+                    <p id="modalUserLocation"></p>
+                    <p id="modalUserLastUpdate"></p>
                 </div>
             </div>
         </div>
+
+        <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-2 px-4 rounded-xl shadow-lg transition-transform duration-300 transform translate-y-full opacity-0">
+            <p id="toastMessage"></p>
+        </div>
     </div>
 
-    <script src="main.js">
-      
-    </script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
