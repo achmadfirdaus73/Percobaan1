@@ -55,17 +55,15 @@ let hourlyChart = null;
 let isDarkMode = localStorage.getItem('darkMode') === 'true';
 let usersRef = null;
 let locationDataRef = null;
-let vectorSource; // Untuk marker di OpenLayers
-let popupOverlay; // Untuk popup di OpenLayers
+let vectorSource;
+let popupOverlay;
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize Dark Mode
     if (isDarkMode) {
-        document.documentElement.classList.add('dark');
+        document.body.classList.add('dark');
         darkModeToggle.querySelector('i').classList.replace('fa-moon', 'fa-sun');
     }
-
     auth.onAuthStateChanged(handleAuthStateChanged);
 });
 
@@ -79,28 +77,30 @@ function handleAuthStateChanged(user) {
         }
         adminName.textContent = user.displayName || 'Admin';
 
-        // PENTING: Cek apakah user adalah admin
-        database.ref(`admins/${user.uid}`).once('value').then((snapshot) => {
-            const isAdmin = snapshot.val();
-            if (isAdmin === true) {
-                loginScreen.classList.add('hidden');
-                dashboardScreen.classList.remove('hidden');
-                dashboardScreen.classList.add('fade-in');
+        // PENTING: Perbaikan logika pengecekan admin
+        database.ref(`admins/${user.uid}`).once('value')
+            .then((snapshot) => {
+                const isAdmin = snapshot.val();
+                if (isAdmin === true) {
+                    loginScreen.classList.add('hidden');
+                    dashboardScreen.classList.remove('hidden');
+                    dashboardScreen.classList.add('fade-in');
 
-                if (!map) {
-                    setTimeout(initMap, 100);
+                    if (!map) {
+                        setTimeout(initMap, 100);
+                    }
+                    loadUsersData();
+                    setupDatabaseListeners();
+                } else {
+                    showToast('Akses ditolak. Anda bukan admin.');
+                    auth.signOut();
                 }
-                loadUsersData();
-                setupDatabaseListeners();
-            } else {
-                showToast('Akses ditolak. Anda bukan admin.');
+            })
+            .catch((error) => {
+                console.error('Error checking admin status:', error);
+                showToast('Error: ' + error.message);
                 auth.signOut();
-            }
-        }).catch((error) => {
-            console.error('Error checking admin status:', error);
-            showToast('Error: ' + error.message);
-            auth.signOut();
-        });
+            });
     } else {
         currentUser = null;
         loginScreen.classList.remove('hidden');
@@ -177,7 +177,7 @@ function hideToast() {
 darkModeToggle.addEventListener('click', () => {
     isDarkMode = !isDarkMode;
     localStorage.setItem('darkMode', isDarkMode);
-    document.documentElement.classList.toggle('dark');
+    document.body.classList.toggle('dark');
     const icon = darkModeToggle.querySelector('i');
     if (isDarkMode) {
         icon.classList.replace('fa-moon', 'fa-sun');
@@ -281,22 +281,18 @@ window.addEventListener('click', (event) => {
 
 // --- OpenLayers Map Implementation ---
 function initMap() {
-    // Sumber untuk marker (titik lokasi user)
     vectorSource = new ol.source.Vector();
-
-    // Layer untuk menampilkan marker
     const vectorLayer = new ol.layer.Vector({
         source: vectorSource,
         style: new ol.style.Style({
             image: new ol.style.Circle({
                 radius: 7,
-                fill: new ol.style.Fill({ color: '#3B82F6' }), // Blue color
+                fill: new ol.style.Fill({ color: '#3B82F6' }),
                 stroke: new ol.style.Stroke({ color: '#FFFFFF', width: 2 })
             })
         })
     });
     
-    // Setup popup overlay
     popupOverlay = new ol.Overlay({
         element: popupContainer,
         autoPan: { animation: { duration: 250 } }
@@ -307,29 +303,27 @@ function initMap() {
         return false;
     };
 
-    // Inisialisasi Peta
     map = new ol.Map({
         target: 'map',
         layers: [
             new ol.layer.Tile({
-                source: new ol.source.OSM() // OpenStreetMap basemap
+                source: new ol.source.OSM()
             }),
             vectorLayer
         ],
         overlays: [popupOverlay],
         view: new ol.View({
-            center: ol.proj.fromLonLat([106.8456, -6.2088]), // Jakarta
+            center: ol.proj.fromLonLat([106.8456, -6.2088]),
             zoom: 10
         })
     });
     
-    // Event listener untuk klik di peta (menampilkan popup)
     map.on('click', function(evt) {
         const feature = map.forEachFeatureAtPixel(evt.pixel, (feature) => feature);
         if (feature) {
             const coordinates = feature.getGeometry().getCoordinates();
             popupOverlay.setPosition(coordinates);
-            const userData = feature.get('userData'); // Ambil data user dari feature
+            const userData = feature.get('userData');
             popupContent.innerHTML = `
                 <h3 class="font-bold text-base mb-1">${userData.name || 'Unknown'}</h3>
                 <p class="text-xs text-gray-600">${userData.email || 'N/A'}</p>
@@ -345,23 +339,19 @@ function initMap() {
 
 function updateUserMarkers() {
     if (!map || !vectorSource) return;
-
-    vectorSource.clear(); // Hapus semua marker lama
+    vectorSource.clear();
     const features = [];
-
     filteredUsers.forEach(user => {
         if (user.location?.lat && user.location?.lng) {
             const feature = new ol.Feature({
                 geometry: new ol.geom.Point(ol.proj.fromLonLat([user.location.lng, user.location.lat])),
-                userData: user // Simpan semua data user di feature untuk popup
+                userData: user
             });
             features.push(feature);
         }
     });
-
     if (features.length > 0) {
         vectorSource.addFeatures(features);
-        // Atur view map agar semua marker terlihat
         map.getView().fit(vectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 500 });
     }
 }
@@ -374,7 +364,6 @@ function updateStats() {
 }
 
 function updateCharts() {
-    // Status Chart
     const activeCount = users.filter(u => u.status === 'active').length;
     const inactiveCount = users.filter(u => u.status === 'inactive').length;
     if (statusChart) statusChart.destroy();
@@ -391,7 +380,6 @@ function updateCharts() {
         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
 
-    // Hourly Chart (Memperbaiki fungsi yang terpotong)
     const hourlyData = Array(24).fill(0);
     users.forEach(user => {
         if (user.location?.timestamp) {
