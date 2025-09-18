@@ -61,19 +61,21 @@ let popupOverlay;
 document.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
+    // Hide loading screen immediately
+    loadingScreen.classList.add('hidden');
+    
+    // Check dark mode preference
     if (isDarkMode) {
         document.body.classList.add('dark');
         darkModeToggle.querySelector('i').classList.replace('fa-moon', 'fa-sun');
     }
     
     // Set up Firebase auth listener
-    // Ini akan memicu fungsi `handleAuthStateChanged` segera setelah status autentikasi diketahui.
     auth.onAuthStateChanged(handleAuthStateChanged);
 }
 
 // Auth State Handler
 function handleAuthStateChanged(user) {
-    loadingScreen.classList.add('hidden');
     if (user) {
         // User is signed in
         currentUser = user;
