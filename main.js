@@ -40,7 +40,6 @@ const modalUserStatus = document.getElementById('modalUserStatus');
 const modalUserLocation = document.getElementById('modalUserLocation');
 const modalUserLastUpdate = document.getElementById('modalUserLastUpdate');
 
-// Elemen untuk popup OpenLayers
 const popupContainer = document.getElementById('popup');
 const popupContent = document.getElementById('popup-content');
 const popupCloser = document.getElementById('popup-closer');
@@ -58,26 +57,32 @@ let locationDataRef = null;
 let vectorSource;
 let popupOverlay;
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', () => {
+// Initialize app on DOM ready
+document.addEventListener('DOMContentLoaded', initApp);
+
+function initApp() {
     if (isDarkMode) {
         document.body.classList.add('dark');
         darkModeToggle.querySelector('i').classList.replace('fa-moon', 'fa-sun');
     }
+    
+    // Set up Firebase auth listener
+    // Ini akan memicu fungsi `handleAuthStateChanged` segera setelah status autentikasi diketahui.
     auth.onAuthStateChanged(handleAuthStateChanged);
-});
+}
 
 // Auth State Handler
 function handleAuthStateChanged(user) {
     loadingScreen.classList.add('hidden');
     if (user) {
+        // User is signed in
         currentUser = user;
         if (user.photoURL) {
             adminProfilePicture.innerHTML = `<img src="${user.photoURL}" alt="Profile" class="w-8 h-8 rounded-full object-cover">`;
         }
         adminName.textContent = user.displayName || 'Admin';
 
-        // PENTING: Perbaikan logika pengecekan admin
+        // Check if user is an admin
         database.ref(`admins/${user.uid}`).once('value')
             .then((snapshot) => {
                 const isAdmin = snapshot.val();
@@ -102,62 +107,13 @@ function handleAuthStateChanged(user) {
                 auth.signOut();
             });
     } else {
+        // User is signed out
         currentUser = null;
         loginScreen.classList.remove('hidden');
         dashboardScreen.classList.add('hidden');
         if (usersRef) usersRef.off();
         if (locationDataRef) locationDataRef.off();
     }
-}
-
-// Setup Database Listeners
-function setupDatabaseListeners() {
-    usersRef = database.ref('users');
-    usersRef.on('value', (snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            users = Object.keys(data).map(key => ({
-                id: key,
-                ...data[key]
-            }));
-            filterAndRender();
-        }
-    });
-
-    locationDataRef = database.ref('location-data');
-    locationDataRef.on('value', (snapshot) => {
-        const locationData = snapshot.val() || {};
-        users = users.map(user => {
-            if (locationData[user.id]) {
-                user.location = locationData[user.id];
-            }
-            return user;
-        });
-        filterAndRender();
-    });
-}
-
-function filterAndRender() {
-    filterUsers();
-    updateStats();
-    updateCharts();
-}
-
-// Load Users Data
-function loadUsersData() {
-    database.ref('users').once('value').then((snapshot) => {
-        const data = snapshot.val();
-        if (data) {
-            users = Object.keys(data).map(key => ({
-                id: key,
-                ...data[key]
-            }));
-            filterAndRender();
-        }
-    }).catch((error) => {
-        console.error('Error loading users data:', error);
-        showToast('Error loading users data: ' + error.message);
-    });
 }
 
 // Show/Hide Toast Notification
