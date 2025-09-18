@@ -61,122 +61,146 @@ let popupOverlay;
 document.addEventListener('DOMContentLoaded', initApp);
 
 function initApp() {
-    // Hide loading screen immediately
-    loadingScreen.classList.add('hidden');
-    
+    // Show loading screen initially
+    loadingScreen.classList.remove('hidden');
+
     // Check dark mode preference
     if (isDarkMode) {
         document.body.classList.add('dark');
-        darkModeToggle.querySelector('i').classList.replace('fa-moon', 'fa-sun');
+        if(darkModeToggle) darkModeToggle.querySelector('i').classList.replace('fa-moon', 'fa-sun');
     }
     
     // Set up Firebase auth listener
+    // Ini adalah listener utama yang akan memicu logika setelah status auth diketahui
     auth.onAuthStateChanged(handleAuthStateChanged);
 }
 
 // Auth State Handler
 function handleAuthStateChanged(user) {
     if (user) {
-        // User is signed in
+        // User is signed in. Now check if they are an admin.
         currentUser = user;
-        if (user.photoURL) {
-            adminProfilePicture.innerHTML = `<img src="${user.photoURL}" alt="Profile" class="w-8 h-8 rounded-full object-cover">`;
-        }
-        adminName.textContent = user.displayName || 'Admin';
-
-        // Check if user is an admin
         database.ref(`admins/${user.uid}`).once('value')
             .then((snapshot) => {
                 const isAdmin = snapshot.val();
                 if (isAdmin === true) {
+                    // User is an admin, show the dashboard
+                    loadingScreen.classList.add('hidden');
                     loginScreen.classList.add('hidden');
                     dashboardScreen.classList.remove('hidden');
                     dashboardScreen.classList.add('fade-in');
 
                     if (!map) {
-                        setTimeout(initMap, 100);
+                        initMap();
                     }
                     loadUsersData();
                     setupDatabaseListeners();
+                    updateAdminUI();
                 } else {
+                    // User is logged in but not an admin. Deny access.
                     showToast('Akses ditolak. Anda bukan admin.');
                     auth.signOut();
                 }
             })
             .catch((error) => {
+                // Error while checking admin status
                 console.error('Error checking admin status:', error);
                 showToast('Error: ' + error.message);
                 auth.signOut();
             });
     } else {
-        // User is signed out
+        // User is signed out. Show the login screen.
         currentUser = null;
+        loadingScreen.classList.add('hidden');
         loginScreen.classList.remove('hidden');
         dashboardScreen.classList.add('hidden');
+        // Clean up database listeners if they exist
         if (usersRef) usersRef.off();
         if (locationDataRef) locationDataRef.off();
     }
 }
 
+// Update UI after successful admin login
+function updateAdminUI() {
+    if (currentUser.photoURL) {
+        adminProfilePicture.innerHTML = `<img src="${currentUser.photoURL}" alt="Profile" class="w-8 h-8 rounded-full object-cover">`;
+    } else {
+        adminProfilePicture.innerHTML = `<i class="fas fa-user text-gray-500 text-sm"></i>`;
+    }
+    adminName.textContent = currentUser.displayName || 'Admin';
+}
+
 // Show/Hide Toast Notification
 function showToast(message, duration = 3000) {
-    toastMessage.textContent = message;
-    toast.classList.add('show');
-    toast.classList.remove('translate-y-full', 'opacity-0');
-    setTimeout(() => hideToast(), duration);
+    if (toastMessage) {
+        toastMessage.textContent = message;
+        toast.classList.add('show');
+        toast.classList.remove('translate-y-full', 'opacity-0');
+        setTimeout(() => hideToast(), duration);
+    }
 }
 
 function hideToast() {
-    toast.classList.remove('show');
-    toast.classList.add('translate-y-full', 'opacity-0');
+    if (toast) {
+        toast.classList.remove('show');
+        toast.classList.add('translate-y-full', 'opacity-0');
+    }
 }
 
 // Dark Mode Toggle
-darkModeToggle.addEventListener('click', () => {
-    isDarkMode = !isDarkMode;
-    localStorage.setItem('darkMode', isDarkMode);
-    document.body.classList.toggle('dark');
-    const icon = darkModeToggle.querySelector('i');
-    if (isDarkMode) {
-        icon.classList.replace('fa-moon', 'fa-sun');
-    } else {
-        icon.classList.replace('fa-sun', 'fa-moon');
-    }
-});
+if (darkModeToggle) {
+    darkModeToggle.addEventListener('click', () => {
+        isDarkMode = !isDarkMode;
+        localStorage.setItem('darkMode', isDarkMode);
+        document.body.classList.toggle('dark');
+        const icon = darkModeToggle.querySelector('i');
+        if (isDarkMode) {
+            icon.classList.replace('fa-moon', 'fa-sun');
+        } else {
+            icon.classList.replace('fa-sun', 'fa-moon');
+        }
+    });
+}
 
 // Login & Logout
-loginBtn.addEventListener('click', async () => {
-    loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
-    loginBtn.disabled = true;
-    const provider = new firebase.auth.GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: 'select_account' });
-    try {
-        await auth.signInWithPopup(provider);
-    } catch (error) {
-        console.error('Login error:', error);
-        showToast('Login gagal: ' + error.message);
-    } finally {
-        loginBtn.innerHTML = '<i class="fab fa-google mr-2"></i>Login dengan Google';
-        loginBtn.disabled = false;
-    }
-});
+if (loginBtn) {
+    loginBtn.addEventListener('click', async () => {
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
+        loginBtn.disabled = true;
+        const provider = new firebase.auth.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: 'select_account' });
+        try {
+            await auth.signInWithPopup(provider);
+        } catch (error) {
+            console.error('Login error:', error);
+            showToast('Login gagal: ' + error.message);
+        } finally {
+            loginBtn.innerHTML = '<i class="fab fa-google mr-2"></i>Login dengan Google';
+            loginBtn.disabled = false;
+        }
+    });
+}
 
-logoutBtn.addEventListener('click', () => auth.signOut().then(() => showToast('Logout berhasil!')));
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => auth.signOut().then(() => showToast('Logout berhasil!')));
+}
 
 // Export to CSV
-exportBtn.addEventListener('click', () => {
-    const csv = Papa.unparse(filteredUsers);
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'users.csv';
-    link.click();
-    showToast('Data berhasil diexport');
-});
+if (exportBtn) {
+    exportBtn.addEventListener('click', () => {
+        const csv = Papa.unparse(filteredUsers);
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'users.csv';
+        link.click();
+        showToast('Data berhasil diexport');
+    });
+}
 
 // Filter & Render Table
-searchInput.addEventListener('input', filterUsers);
-statusFilter.addEventListener('change', filterUsers);
+if (searchInput) searchInput.addEventListener('input', filterUsers);
+if (statusFilter) statusFilter.addEventListener('change', filterUsers);
 
 function filterUsers() {
     const searchTerm = searchInput.value.toLowerCase();
@@ -193,6 +217,7 @@ function filterUsers() {
 }
 
 function renderUserTable() {
+    if (!userTableBody) return;
     if (filteredUsers.length === 0) {
         userTableBody.innerHTML = `<tr><td colspan="5" class="px-6 py-4 text-center text-sm text-gray-500">No users found</td></tr>`;
         return;
@@ -232,7 +257,7 @@ function showUserModal(userId) {
     userModal.classList.remove('hidden');
 }
 
-closeModal.addEventListener('click', () => userModal.classList.add('hidden'));
+if (closeModal) closeModal.addEventListener('click', () => userModal.classList.add('hidden'));
 window.addEventListener('click', (event) => {
     if (event.target === userModal) userModal.classList.add('hidden');
 });
@@ -309,34 +334,36 @@ function updateUserMarkers() {
         }
     });
     if (features.length > 0) {
-        vectorSource.addFeatures(features);
         map.getView().fit(vectorSource.getExtent(), { padding: [50, 50, 50, 50], duration: 500 });
     }
 }
 
 // Update Stats & Charts
 function updateStats() {
-    totalUsers.textContent = users.length;
-    activeUsers.textContent = users.filter(u => u.status === 'active').length;
-    inactiveUsers.textContent = users.filter(u => u.status === 'inactive').length;
+    if (totalUsers) totalUsers.textContent = users.length;
+    if (activeUsers) activeUsers.textContent = users.filter(u => u.status === 'active').length;
+    if (inactiveUsers) inactiveUsers.textContent = users.filter(u => u.status === 'inactive').length;
 }
 
 function updateCharts() {
     const activeCount = users.filter(u => u.status === 'active').length;
     const inactiveCount = users.filter(u => u.status === 'inactive').length;
     if (statusChart) statusChart.destroy();
-    statusChart = new Chart(document.getElementById('statusChart').getContext('2d'), {
-        type: 'doughnut',
-        data: {
-            labels: ['Active', 'Inactive'],
-            datasets: [{
-                data: [activeCount, inactiveCount],
-                backgroundColor: ['#10B981', '#EF4444'],
-                borderWidth: 0
-            }]
-        },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-    });
+    const statusChartCtx = document.getElementById('statusChart');
+    if (statusChartCtx) {
+        statusChart = new Chart(statusChartCtx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Active', 'Inactive'],
+                datasets: [{
+                    data: [activeCount, inactiveCount],
+                    backgroundColor: ['#10B981', '#EF4444'],
+                    borderWidth: 0
+                }]
+            },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        });
+    }
 
     const hourlyData = Array(24).fill(0);
     users.forEach(user => {
@@ -346,21 +373,81 @@ function updateCharts() {
         }
     });
     if (hourlyChart) hourlyChart.destroy();
-    hourlyChart = new Chart(document.getElementById('hourlyChart').getContext('2d'), {
-        type: 'bar',
-        data: {
-            labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
-            datasets: [{
-                label: 'User Activity',
-                data: hourlyData,
-                backgroundColor: '#3B82F6',
-                borderColor: '#2563EB',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    const hourlyChartCtx = document.getElementById('hourlyChart');
+    if (hourlyChartCtx) {
+        hourlyChart = new Chart(hourlyChartCtx.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: Array.from({ length: 24 }, (_, i) => `${i}:00`),
+                datasets: [{
+                    label: 'User Activity',
+                    data: hourlyData,
+                    backgroundColor: '#3B82F6',
+                    borderColor: '#2563EB',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+            }
+        });
+    }
+}
+
+// Data fetching and listeners
+function loadUsersData() {
+    usersRef = database.ref('users');
+    locationDataRef = database.ref('location-data');
+
+    // Fetch initial user data
+    usersRef.once('value', (snapshot) => {
+        const usersObj = snapshot.val();
+        users = [];
+        for (const userId in usersObj) {
+            const user = usersObj[userId];
+            users.push({ id: userId, ...user });
+        }
+        
+        // Fetch location data separately and merge
+        locationDataRef.once('value', (locationSnapshot) => {
+            const locations = locationSnapshot.val() || {};
+            users.forEach(user => {
+                user.location = locations[user.id] || null;
+                user.status = user.location ? 'active' : 'inactive';
+            });
+            filteredUsers = [...users];
+            renderUserTable();
+            updateStats();
+            updateCharts();
+            updateUserMarkers();
+        });
+    });
+}
+
+function setupDatabaseListeners() {
+    usersRef.on('child_changed', (snapshot) => {
+        const updatedUser = snapshot.val();
+        const userId = snapshot.key;
+        const index = users.findIndex(u => u.id === userId);
+        if (index !== -1) {
+            users[index] = { ...users[index], ...updatedUser };
+            filterUsers();
+            updateStats();
+            updateCharts();
+        }
+    });
+
+    locationDataRef.on('child_changed', (snapshot) => {
+        const locationData = snapshot.val();
+        const userId = snapshot.key;
+        const index = users.findIndex(u => u.id === userId);
+        if (index !== -1) {
+            users[index].location = locationData;
+            users[index].status = locationData ? 'active' : 'inactive';
+            filterUsers();
+            updateStats();
+            updateCharts();
         }
     });
 }
