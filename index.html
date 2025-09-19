@@ -1,174 +1,105 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
-    <link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - Tracking Users</title>
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/ol@latest/ol.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css"/>
 </head>
-<body class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+<body class="bg-gray-100">
 
-    <div id="app" class="min-h-screen">
-        <div id="loadingScreen" class="absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900 z-50">
-            <div class="flex flex-col items-center">
-                <div class="spinner mb-4"></div>
-                <p class="text-sm text-gray-500 dark:text-gray-400">Loading data...</p>
-                <div id="timeoutMessage" class="hidden text-red-500 mt-2">Loading is taking too long.</div>
-                <button id="refreshBtn" class="hidden mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Refresh</button>
-            </div>
-        </div>
-
-        <div id="errorScreen" class="hidden absolute inset-0 flex items-center justify-center bg-gray-100 dark:bg-gray-900 z-50">
-            <div class="text-center">
-                <i class="fas fa-exclamation-triangle text-red-500 text-4xl mb-4"></i>
-                <h2 class="text-xl font-bold text-red-500">Error</h2>
-                <p id="errorMessage" class="text-gray-600 dark:text-gray-300 mt-2">Failed to load data.</p>
-            </div>
-        </div>
-
-        <div id="dashboardScreen" class="hidden flex flex-col lg:flex-row min-h-screen transition-opacity">
-            <aside class="bg-gray-800 dark:bg-gray-900 text-white w-full lg:w-64 p-6 flex flex-col space-y-4">
-                <div class="flex items-center space-x-2">
-                    <i class="fas fa-map-marked-alt text-2xl text-blue-400"></i>
-                    <h1 class="text-xl font-bold">Admin Panel</h1>
-                </div>
-                <nav class="flex-1 mt-6 space-y-2">
-                    <a href="#" class="flex items-center p-3 rounded-xl bg-blue-600 dark:bg-blue-700 font-semibold text-white">
-                        <i class="fas fa-chart-line mr-2"></i> Dashboard
-                    </a>
-                </nav>
-                <div class="mt-auto pt-4 border-t border-gray-700 dark:border-gray-800">
-                    <div class="flex items-center">
-                        <div id="adminProfilePicture" class="flex items-center justify-center h-10 w-10 bg-gray-700 dark:bg-gray-600 rounded-full mr-3"></div>
-                        <span id="adminName" class="font-medium text-sm"></span>
-                        <button id="darkModeToggle" class="ml-auto p-2 text-gray-400 hover:text-white rounded-full transition-colors">
-                            <i class="fas fa-moon"></i>
-                        </button>
-                    </div>
-                </div>
-            </aside>
-
-            <main class="flex-1 p-4 lg:p-6 space-y-6">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Users</h3>
-                            <i class="fas fa-users text-2xl text-blue-500"></i>
-                        </div>
-                        <p id="totalUsers" class="text-3xl font-bold mt-2"></p>
-                    </div>
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Users</h3>
-                            <i class="fas fa-user-check text-2xl text-green-500"></i>
-                        </div>
-                        <p id="activeUsers" class="text-3xl font-bold mt-2"></p>
-                    </div>
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">Inactive Users</h3>
-                            <i class="fas fa-user-times text-2xl text-red-500"></i>
-                        </div>
-                        <p id="inactiveUsers" class="text-3xl font-bold mt-2"></p>
-                    </div>
-                    <div class="card p-6">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400">User Activity</h3>
-                            <i class="fas fa-chart-bar text-2xl text-yellow-500"></i>
-                        </div>
-                        <div class="mt-2">
-                            <canvas id="hourlyChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                    <div class="lg:col-span-2">
-                        <div class="card p-6">
-                            <h2 class="text-xl font-bold mb-4">Live Location Map</h2>
-                            <div class="h-96 w-full rounded-xl overflow-hidden">
-                                <div id="map" class="w-full h-full"></div>
-                                <div id="popup" class="ol-popup">
-                                    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-                                    <div id="popup-content"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="lg:col-span-1">
-                        <div class="card p-6">
-                            <h2 class="text-xl font-bold mb-4">User Status</h2>
-                            <div class="h-64">
-                                <canvas id="statusChart"></canvas>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="card p-6">
-                    <div class="flex flex-col md:flex-row items-center justify-between mb-4 space-y-4 md:space-y-0">
-                        <h2 class="text-xl font-bold">User List</h2>
-                        <div class="flex items-center space-x-2 w-full md:w-auto">
-                            <input type="text" id="searchInput" placeholder="Search users..." class="w-full px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <select id="statusFilter" class="px-4 py-2 border rounded-xl dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="all">All</option>
-                                <option value="active">Active</option>
-                                <option value="inactive">Inactive</option>
-                            </select>
-                            <button id="exportBtn" class="px-4 py-2 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors whitespace-nowrap">
-                                <i class="fas fa-file-csv"></i> Export
-                            </button>
-                        </div>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                            <thead>
-                                <tr>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Name</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Email</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Location</th>
-                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Last Update</th>
-                                </tr>
-                            </thead>
-                            <tbody id="userTableBody" class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </main>
-        </div>
-
-        <div id="userModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-50 transition-opacity">
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl p-6 w-full max-w-sm">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-bold">User Details</h3>
-                    <button id="closeModal" class="text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">&times;</button>
-                </div>
-                <div class="space-y-2 text-sm">
-                    <p id="modalUserName" class="font-semibold"></p>
-                    <p id="modalUserEmail"></p>
-                    <p id="modalUserStatus"></p>
-                    <p id="modalUserLocation"></p>
-                    <p id="modalUserLastUpdate"></p>
-                </div>
-            </div>
-        </div>
-
-        <div id="toast" class="fixed bottom-4 left-1/2 -translate-x-1/2 bg-gray-800 text-white py-2 px-4 rounded-xl shadow-lg transition-transform duration-300 transform translate-y-full opacity-0">
-            <p id="toastMessage"></p>
-        </div>
+  <!-- Login Section -->
+  <div id="loginSection" class="flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-sm bg-white shadow-md rounded-lg p-6">
+      <h2 class="text-2xl font-bold text-center mb-4">Login Admin</h2>
+      <form id="loginForm" class="space-y-4">
+        <input type="email" id="email" placeholder="Email" required class="w-full px-3 py-2 border rounded" />
+        <input type="password" id="password" placeholder="Password" required class="w-full px-3 py-2 border rounded" />
+        <button type="submit" class="w-full bg-blue-500 hover:bg-blue-600 text-white py-2 rounded">Login</button>
+      </form>
     </div>
+  </div>
 
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
-    <script src="main.js"></script>
+  <!-- Dashboard Section -->
+  <div id="dashboardSection" class="hidden">
+    <!-- Navbar -->
+    <header class="flex items-center justify-between p-4 bg-blue-600 text-white">
+      <h1 class="text-xl font-bold">Dashboard Users</h1>
+      <div class="flex gap-2">
+        <button id="darkModeToggle" class="px-3 py-1 bg-gray-800 rounded">🌙</button>
+        <button id="logoutBtn" class="px-3 py-1 bg-red-500 rounded">Logout</button>
+      </div>
+    </header>
+
+    <!-- Stats -->
+    <section class="grid grid-cols-3 gap-4 p-4">
+      <div class="p-4 bg-white shadow rounded text-center">
+        <h2 class="font-bold">Total Users</h2>
+        <p id="totalUsers" class="text-2xl">0</p>
+      </div>
+      <div class="p-4 bg-white shadow rounded text-center">
+        <h2 class="font-bold">Active</h2>
+        <p id="activeUsers" class="text-2xl text-green-500">0</p>
+      </div>
+      <div class="p-4 bg-white shadow rounded text-center">
+        <h2 class="font-bold">Inactive</h2>
+        <p id="inactiveUsers" class="text-2xl text-red-500">0</p>
+      </div>
+    </section>
+
+    <!-- Filters -->
+    <section class="flex items-center gap-4 p-4">
+      <input id="searchInput" type="text" placeholder="Cari user..." class="p-2 border rounded w-1/2">
+      <select id="statusFilter" class="p-2 border rounded">
+        <option value="all">Semua</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <button id="exportBtn" class="px-4 py-2 bg-green-500 text-white rounded">Export CSV</button>
+    </section>
+
+    <!-- Users Table -->
+    <section class="p-4 overflow-x-auto">
+      <table class="w-full border">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="p-2 border">Foto</th>
+            <th class="p-2 border">Nama</th>
+            <th class="p-2 border">Email</th>
+            <th class="p-2 border">Status</th>
+            <th class="p-2 border">Lokasi</th>
+          </tr>
+        </thead>
+        <tbody id="userTableBody"></tbody>
+      </table>
+    </section>
+
+    <!-- Map -->
+    <section class="p-4">
+      <h2 class="text-lg font-bold mb-2">Map Realtime</h2>
+      <div id="map"></div>
+    </section>
+
+    <!-- Bottom Nav -->
+    <nav class="bottom-nav">
+      <button>🏠 Home</button>
+      <button>👥 Users</button>
+      <button>📊 Reports</button>
+      <button>⚙️ Settings</button>
+    </nav>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-20 right-4 bg-black text-white px-4 py-2 rounded opacity-0 translate-y-full toast">
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script type="module" src="main.js">
+
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/ol@latest/dist/ol.js"></script>
 </body>
 </html>
